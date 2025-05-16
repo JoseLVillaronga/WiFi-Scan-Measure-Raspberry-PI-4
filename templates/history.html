@@ -231,13 +231,16 @@ document.addEventListener('DOMContentLoaded', function() {
         // La fecha puede venir en formato ISO o como objeto con $date
         let timestamp;
 
-        if (scan.timestamp.$date) {
+        if (typeof scan.timestamp === 'string') {
+            // Formato ISO (string)
+            timestamp = new Date(scan.timestamp);
+        } else if (scan.timestamp.$date) {
             // Formato MongoDB (objeto con $date)
             const timestampMs = scan.timestamp.$date;
             timestamp = new Date(timestampMs);
         } else {
-            // Formato ISO (string)
-            timestamp = new Date(scan.timestamp);
+            // Fallback
+            timestamp = new Date();
         }
 
         console.log("Timestamp en historial:", timestamp);

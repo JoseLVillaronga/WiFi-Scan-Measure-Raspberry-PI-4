@@ -149,6 +149,11 @@ def api_get_scan(scan_id):
             # Convertir a JSON serializable
             scan_json = json.loads(dumps(scan))
 
+            # Asegurarnos de que la fecha se maneje de manera consistente
+            # Esto evita problemas con la zona horaria en el frontend
+            if 'timestamp' in scan:
+                scan_json['timestamp'] = scan['timestamp'].isoformat()
+
             return jsonify({
                 'success': True,
                 'scan': scan_json
