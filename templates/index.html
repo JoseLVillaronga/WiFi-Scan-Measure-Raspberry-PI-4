@@ -294,36 +294,52 @@ document.addEventListener('DOMContentLoaded', function() {
             signalChart.destroy();
         }
 
+        // Crear etiquetas numéricas para el eje X
+        const maxNetworks = Math.max(top2g.length, top5g.length);
+        const xLabels = Array.from({length: maxNetworks}, (_, i) => (i + 1).toString());
+
+        // Asegurarse de que ambos arrays de datos tengan la misma longitud
+        // Rellenar con null los valores faltantes
+        const data2g = Array(maxNetworks).fill(null);
+        const data5g = Array(maxNetworks).fill(null);
+
+        // Llenar con los datos reales
+        for (let i = 0; i < top2g.length; i++) {
+            data2g[i] = top2g[i].signal;
+        }
+
+        for (let i = 0; i < top5g.length; i++) {
+            data5g[i] = top5g[i].signal;
+        }
+
         signalChart = new Chart(ctxSignal, {
             type: 'bar',
             data: {
+                labels: xLabels,
                 datasets: [
                     {
                         label: 'Redes 2.4GHz (dBm)',
-                        data: signalData2g,
+                        data: data2g,
                         backgroundColor: backgroundColors2g,
                         borderColor: 'rgba(54, 162, 235, 1)',
                         borderWidth: 1,
                         barPercentage: 0.8,
-                        categoryPercentage: 0.9,
-                        labels: labels2g
+                        categoryPercentage: 0.9
                     },
                     {
                         label: 'Redes 5GHz (dBm)',
-                        data: signalData5g,
+                        data: data5g,
                         backgroundColor: backgroundColors5g,
                         borderColor: 'rgba(255, 99, 132, 1)',
                         borderWidth: 1,
                         barPercentage: 0.8,
-                        categoryPercentage: 0.9,
-                        labels: labels5g
+                        categoryPercentage: 0.9
                     }
                 ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                indexAxis: 'x',  // Eje horizontal para las etiquetas
                 plugins: {
                     tooltip: {
                         callbacks: {
@@ -331,7 +347,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                 // Mostrar el nombre de la red en el tooltip
                                 const datasetIndex = context[0].datasetIndex;
                                 const index = context[0].dataIndex;
-                                return datasetIndex === 0 ? labels2g[index] : labels5g[index];
+                                const networks = datasetIndex === 0 ? top2g : top5g;
+                                if (index < networks.length) {
+                                    return networks[index].essid || networks[index].mac;
+                                }
+                                return 'Red ' + (index + 1);
                             }
                         }
                     },
@@ -346,15 +366,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             text: 'Intensidad de señal (dBm)'
                         },
                         min: -90,
-                        max: -30
-                    },
-                    x: {
-                        ticks: {
-                            callback: function(value, index) {
-                                // Mostrar números en lugar de nombres de red en el eje X
-                                return index + 1;
-                            }
-                        }
+                        max: -30,
+                        reverse: true
                     }
                 }
             }
