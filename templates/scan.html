@@ -330,19 +330,36 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function displaySignalChart(networks) {
-        // Ordenar redes por intensidad de señal
-        const topNetworks = [...networks]
-            .sort((a, b) => (b.signal || -100) - (a.signal || -100))
-            .slice(0, 10);  // Mostrar solo las 10 mejores
+        // Separar redes por banda
+        const networks2g = networks.filter(n => n.channel && n.channel <= 14);
+        const networks5g = networks.filter(n => n.channel && n.channel > 14);
 
-        // Preparar datos
-        const labels = topNetworks.map(n => n.essid || n.mac);
-        const signalData = topNetworks.map(n => n.signal);
-        const backgroundColors = topNetworks.map(n => {
-            // Color basado en la intensidad de señal
-            if (n.signal > -50) return 'rgba(75, 192, 192, 0.5)';  // Buena señal
-            if (n.signal > -70) return 'rgba(255, 205, 86, 0.5)';  // Señal media
-            return 'rgba(255, 99, 132, 0.5)';  // Señal débil
+        // Ordenar cada grupo por intensidad de señal
+        networks2g.sort((a, b) => (b.signal || -100) - (a.signal || -100));
+        networks5g.sort((a, b) => (b.signal || -100) - (a.signal || -100));
+
+        // Limitar a las 5 mejores redes de cada banda para no saturar el gráfico
+        const top2g = networks2g.slice(0, 5);
+        const top5g = networks5g.slice(0, 5);
+
+        // Preparar datos para 2.4GHz
+        const labels2g = top2g.map(n => n.essid || n.mac);
+        const signalData2g = top2g.map(n => n.signal);
+        const backgroundColors2g = top2g.map(n => {
+            // Color basado en la intensidad de señal (tonos azules para 2.4GHz)
+            if (n.signal > -50) return 'rgba(54, 162, 235, 0.8)';  // Buena señal
+            if (n.signal > -70) return 'rgba(54, 162, 235, 0.5)';  // Señal media
+            return 'rgba(54, 162, 235, 0.3)';  // Señal débil
+        });
+
+        // Preparar datos para 5GHz
+        const labels5g = top5g.map(n => n.essid || n.mac);
+        const signalData5g = top5g.map(n => n.signal);
+        const backgroundColors5g = top5g.map(n => {
+            // Color basado en la intensidad de señal (tonos rojos para 5GHz)
+            if (n.signal > -50) return 'rgba(255, 99, 132, 0.8)';  // Buena señal
+            if (n.signal > -70) return 'rgba(255, 99, 132, 0.5)';  // Señal media
+            return 'rgba(255, 99, 132, 0.3)';  // Señal débil
         });
 
         // Crear/actualizar gráfico
@@ -355,23 +372,64 @@ document.addEventListener('DOMContentLoaded', function() {
         signalChart = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Intensidad de señal (dBm)',
-                    data: signalData,
-                    backgroundColor: backgroundColors,
-                    borderColor: 'rgba(54, 162, 235, 1)',
-                    borderWidth: 1
-                }]
+                datasets: [
+                    {
+                        label: 'Redes 2.4GHz (dBm)',
+                        data: signalData2g,
+                        backgroundColor: backgroundColors2g,
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1,
+                        barPercentage: 0.8,
+                        categoryPercentage: 0.9,
+                        labels: labels2g
+                    },
+                    {
+                        label: 'Redes 5GHz (dBm)',
+                        data: signalData5g,
+                        backgroundColor: backgroundColors5g,
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderWidth: 1,
+                        barPercentage: 0.8,
+                        categoryPercentage: 0.9,
+                        labels: labels5g
+                    }
+                ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                indexAxis: 'y',
+                indexAxis: 'x',  // Eje horizontal para las etiquetas
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            title: function(context) {
+                                // Mostrar el nombre de la red en el tooltip
+                                const datasetIndex = context[0].datasetIndex;
+                                const index = context[0].dataIndex;
+                                return datasetIndex === 0 ? labels2g[index] : labels5g[index];
+                            }
+                        }
+                    },
+                    legend: {
+                        position: 'top'
+                    }
+                },
                 scales: {
-                    x: {
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Intensidad de señal (dBm)'
+                        },
                         min: -90,
                         max: -30
+                    },
+                    x: {
+                        ticks: {
+                            callback: function(value, index) {
+                                // Mostrar números en lugar de nombres de red en el eje X
+                                return index + 1;
+                            }
+                        }
                     }
                 }
             }
