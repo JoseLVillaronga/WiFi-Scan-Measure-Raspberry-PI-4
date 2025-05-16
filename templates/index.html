@@ -119,7 +119,12 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 if (data.success) {
                     updateChannelsCharts(data);
-                    updateLastScanTime(new Date(data.timestamp.$date));
+
+                    // Convertir la fecha de MongoDB a fecha local
+                    // El valor $date es un timestamp en milisegundos UTC
+                    const timestamp = new Date(data.timestamp.$date);
+                    console.log("Timestamp original:", timestamp);
+                    updateLastScanTime(timestamp);
 
                     // Contar redes por banda
                     const networks2g = Object.values(data.channels_2g).reduce((a, b) => a + b, 0);
@@ -144,6 +149,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function updateLastScanTime(timestamp) {
+        // Formatear la fecha con la zona horaria correcta
         const options = {
             year: 'numeric',
             month: 'short',
@@ -153,7 +159,13 @@ document.addEventListener('DOMContentLoaded', function() {
             second: '2-digit',
             timeZone: 'America/Argentina/Buenos_Aires'  // Especificar zona horaria explícitamente
         };
-        document.getElementById('last-scan-time').textContent = timestamp.toLocaleDateString('es-ES', options);
+
+        // Usar Intl.DateTimeFormat para un formateo más preciso con zona horaria
+        const formatter = new Intl.DateTimeFormat('es-ES', options);
+        const formattedDate = formatter.format(timestamp);
+        console.log("Fecha formateada:", formattedDate);
+
+        document.getElementById('last-scan-time').textContent = formattedDate;
     }
 
     // Variables para los gráficos

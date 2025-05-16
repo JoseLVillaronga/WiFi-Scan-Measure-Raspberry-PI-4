@@ -229,6 +229,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function displayScanInfo(scan) {
         // Formatear fecha
         const timestamp = new Date(scan.timestamp.$date);
+        console.log("Timestamp original en historial:", timestamp);
+
         const options = {
             year: 'numeric',
             month: 'short',
@@ -239,12 +241,17 @@ document.addEventListener('DOMContentLoaded', function() {
             timeZone: 'America/Argentina/Buenos_Aires'  // Especificar zona horaria explícitamente
         };
 
+        // Usar Intl.DateTimeFormat para un formateo más preciso con zona horaria
+        const formatter = new Intl.DateTimeFormat('es-ES', options);
+        const formattedDate = formatter.format(timestamp);
+        console.log("Fecha formateada en historial:", formattedDate);
+
         // Contar redes por banda
         const networks2g = scan.networks.filter(n => n.channel && n.channel <= 14).length;
         const networks5g = scan.networks.filter(n => n.channel && n.channel > 14).length;
 
         // Actualizar elementos
-        scanTimestamp.textContent = timestamp.toLocaleDateString('es-ES', options);
+        scanTimestamp.textContent = formattedDate;
         scanName.textContent = scan.name || 'Escaneo sin nombre';
         scanTotalNetworks.textContent = scan.total_networks;
         scan2gNetworks.textContent = networks2g;
