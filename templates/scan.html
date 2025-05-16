@@ -1,0 +1,371 @@
+{% extends "base.html" %}
+
+{% block title %}Escanear - WiFi Analyzer{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-search me-2"></i>Escanear redes WiFi
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="scan-form">
+                    <div class="mb-3">
+                        <label for="scan-name" class="form-label">Nombre del escaneo</label>
+                        <input type="text" class="form-control" id="scan-name"
+                               placeholder="Escaneo en puesto de trabajo">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="cpe-id" class="form-label">ID de equipo CPE (opcional)</label>
+                        <input type="text" class="form-control" id="cpe-id"
+                               placeholder="Ej: CPE12345">
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary" id="scan-button">
+                            <i class="fas fa-search me-2"></i>Iniciar escaneo
+                        </button>
+                    </div>
+                </form>
+
+                <div class="mt-4" id="scan-result" style="display: none;">
+                    <div class="alert alert-success">
+                        <h5><i class="fas fa-check-circle me-2"></i>Escaneo completado</h5>
+                        <p id="scan-summary"></p>
+                    </div>
+                </div>
+
+                <div class="mt-4" id="scan-error" style="display: none;">
+                    <div class="alert alert-danger">
+                        <h5><i class="fas fa-exclamation-circle me-2"></i>Error en el escaneo</h5>
+                        <p id="error-message"></p>
+                    </div>
+                </div>
+
+                <div class="mt-4" id="scan-loading" style="display: none;">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Escaneando...</span>
+                        </div>
+                        <p class="mt-2">Escaneando redes WiFi...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row" id="scan-results-container" style="display: none;">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-list me-2"></i>Resultados del escaneo
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>SSID</th>
+                                <th>Canal</th>
+                                <th>Frecuencia</th>
+                                <th>Señal (dBm)</th>
+                                <th>Distancia est.</th>
+                                <th>MAC</th>
+                            </tr>
+                        </thead>
+                        <tbody id="networks-table">
+                            <!-- Los resultados se cargarán aquí -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4" id="scan-charts-container" style="display: none;">
+    <div class="col-md-6 mb-3">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-bar me-2"></i>Distribución de canales
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="channels-chart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-signal me-2"></i>Intensidad de señal
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="signal-chart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const scanForm = document.getElementById('scan-form');
+    const scanButton = document.getElementById('scan-button');
+    const scanLoading = document.getElementById('scan-loading');
+    const scanResult = document.getElementById('scan-result');
+    const scanError = document.getElementById('scan-error');
+    const scanSummary = document.getElementById('scan-summary');
+    const errorMessage = document.getElementById('error-message');
+    const networksTable = document.getElementById('networks-table');
+    const scanResultsContainer = document.getElementById('scan-results-container');
+    const scanChartsContainer = document.getElementById('scan-charts-container');
+
+    let channelsChart = null;
+    let signalChart = null;
+
+    scanForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        // Mostrar indicador de carga
+        scanButton.disabled = true;
+        scanLoading.style.display = 'block';
+        scanResult.style.display = 'none';
+        scanError.style.display = 'none';
+        scanResultsContainer.style.display = 'none';
+        scanChartsContainer.style.display = 'none';
+
+        // Obtener datos del formulario
+        const scanName = document.getElementById('scan-name').value ||
+                         `Escaneo ${new Date().toLocaleString()}`;
+        const cpeId = document.getElementById('cpe-id').value || '';
+
+        // Crear FormData
+        const formData = new FormData();
+        formData.append('scan_name', scanName);
+        if (cpeId) {
+            formData.append('cpe_id', cpeId);
+        }
+
+        // Realizar petición
+        fetch('/api/scan', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            scanLoading.style.display = 'none';
+            scanButton.disabled = false;
+
+            if (data.success) {
+                // Mostrar resultado exitoso
+                scanResult.style.display = 'block';
+                scanSummary.textContent = `Se encontraron ${data.networks_found} redes WiFi.`;
+
+                // Cargar detalles del escaneo
+                loadScanDetails(data.scan_id);
+            } else {
+                // Mostrar error
+                scanError.style.display = 'block';
+                errorMessage.textContent = data.message;
+            }
+        })
+        .catch(error => {
+            scanLoading.style.display = 'none';
+            scanButton.disabled = false;
+            scanError.style.display = 'block';
+            errorMessage.textContent = `Error de conexión: ${error.message}`;
+        });
+    });
+
+    function loadScanDetails(scanId) {
+        fetch(`/api/scans/${scanId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Mostrar tabla de redes
+                    displayNetworksTable(data.scan.networks);
+
+                    // Mostrar gráficos
+                    displayChannelsChart(data.scan.networks);
+                    displaySignalChart(data.scan.networks);
+
+                    // Mostrar contenedores
+                    scanResultsContainer.style.display = 'block';
+                    scanChartsContainer.style.display = 'block';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading scan details:', error);
+            });
+    }
+
+    function displayNetworksTable(networks) {
+        // Ordenar redes por intensidad de señal
+        networks.sort((a, b) => (b.signal || -100) - (a.signal || -100));
+
+        // Limpiar tabla
+        networksTable.innerHTML = '';
+
+        // Añadir filas
+        networks.forEach(network => {
+            const row = document.createElement('tr');
+
+            // Determinar clase de señal
+            let signalClass = '';
+            if (network.signal > -50) signalClass = 'text-success';
+            else if (network.signal > -70) signalClass = 'text-warning';
+            else signalClass = 'text-danger';
+
+            row.innerHTML = `
+                <td>${network.essid || '<em>Hidden</em>'}</td>
+                <td>${network.channel || 'N/A'}</td>
+                <td>${network.frequency ? network.frequency + ' GHz' : 'N/A'}</td>
+                <td class="${signalClass}">${network.signal || 'N/A'} dBm</td>
+                <td>${network.distance ? network.distance + ' m' : 'N/A'}</td>
+                <td><small>${network.mac || 'N/A'}</small></td>
+            `;
+
+            networksTable.appendChild(row);
+        });
+    }
+
+    function displayChannelsChart(networks) {
+        // Contar redes por canal
+        const channels2g = {};
+        const channels5g = {};
+
+        networks.forEach(network => {
+            if (!network.channel) return;
+
+            if (network.channel <= 14) {
+                channels2g[network.channel] = (channels2g[network.channel] || 0) + 1;
+            } else {
+                channels5g[network.channel] = (channels5g[network.channel] || 0) + 1;
+            }
+        });
+
+        // Preparar datos para el gráfico
+        const labels = [];
+        const data2g = [];
+        const data5g = [];
+
+        // Añadir canales 2.4GHz
+        for (let i = 1; i <= 14; i++) {
+            labels.push(i);
+            data2g.push(channels2g[i] || 0);
+            data5g.push(0);  // No hay canales 5GHz aquí
+        }
+
+        // Añadir canales 5GHz
+        Object.keys(channels5g).sort((a, b) => a - b).forEach(channel => {
+            labels.push(channel);
+            data2g.push(0);  // No hay canales 2.4GHz aquí
+            data5g.push(channels5g[channel]);
+        });
+
+        // Crear/actualizar gráfico
+        const ctx = document.getElementById('channels-chart').getContext('2d');
+
+        if (channelsChart) {
+            channelsChart.destroy();
+        }
+
+        channelsChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: '2.4 GHz',
+                        data: data2g,
+                        backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: '5 GHz',
+                        data: data5g,
+                        backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        suggestedMax: 10,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function displaySignalChart(networks) {
+        // Ordenar redes por intensidad de señal
+        const topNetworks = [...networks]
+            .sort((a, b) => (b.signal || -100) - (a.signal || -100))
+            .slice(0, 10);  // Mostrar solo las 10 mejores
+
+        // Preparar datos
+        const labels = topNetworks.map(n => n.essid || n.mac);
+        const signalData = topNetworks.map(n => n.signal);
+        const backgroundColors = topNetworks.map(n => {
+            // Color basado en la intensidad de señal
+            if (n.signal > -50) return 'rgba(75, 192, 192, 0.5)';  // Buena señal
+            if (n.signal > -70) return 'rgba(255, 205, 86, 0.5)';  // Señal media
+            return 'rgba(255, 99, 132, 0.5)';  // Señal débil
+        });
+
+        // Crear/actualizar gráfico
+        const ctx = document.getElementById('signal-chart').getContext('2d');
+
+        if (signalChart) {
+            signalChart.destroy();
+        }
+
+        signalChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Intensidad de señal (dBm)',
+                    data: signalData,
+                    backgroundColor: backgroundColors,
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                scales: {
+                    x: {
+                        min: -90,
+                        max: -30
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

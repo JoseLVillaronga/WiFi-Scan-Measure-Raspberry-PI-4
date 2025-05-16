@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - WiFi Analyzer{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">
+                                    <i class="fas fa-wifi text-primary me-2"></i>Redes detectadas
+                                </h5>
+                                <h2 class="display-4" id="total-networks">--</h2>
+                                <p class="text-muted" id="last-scan-time">Último escaneo: --</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">
+                                    <i class="fas fa-broadcast-tower text-success me-2"></i>2.4 GHz
+                                </h5>
+                                <h2 class="display-4" id="networks-2g">--</h2>
+                                <p class="text-muted">Redes en banda 2.4 GHz</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">
+                                    <i class="fas fa-broadcast-tower text-danger me-2"></i>5 GHz
+                                </h5>
+                                <h2 class="display-4" id="networks-5g">--</h2>
+                                <p class="text-muted">Redes en banda 5 GHz</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6 mb-3">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-bar me-2"></i>Canales 2.4 GHz
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="channels-2g-chart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-bar me-2"></i>Canales 5 GHz
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="channels-5g-chart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-signal me-2"></i>Redes con mejor señal
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="signal-chart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12 text-center">
+        <a href="{{ url_for('scan_page') }}" class="btn btn-primary btn-lg">
+            <i class="fas fa-search me-2"></i>Realizar nuevo escaneo
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Cargar datos iniciales
+    loadDashboardData();
+
+    // Actualizar cada 30 segundos
+    setInterval(loadDashboardData, 30000);
+
+    function loadDashboardData() {
+        // Cargar datos de canales
+        fetch('/api/networks/channels')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateChannelsCharts(data);
+                    updateLastScanTime(new Date(data.timestamp.$date));
+
+                    // Contar redes por banda
+                    const networks2g = Object.values(data.channels_2g).reduce((a, b) => a + b, 0);
+                    const networks5g = Object.values(data.channels_5g).reduce((a, b) => a + b, 0);
+
+                    document.getElementById('networks-2g').textContent = networks2g;
+                    document.getElementById('networks-5g').textContent = networks5g;
+                    document.getElementById('total-networks').textContent = networks2g + networks5g;
+                }
+            })
+            .catch(error => console.error('Error loading channels data:', error));
+
+        // Cargar datos de señal
+        fetch('/api/networks/signal')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateSignalChart(data.networks);
+                }
+            })
+            .catch(error => console.error('Error loading signal data:', error));
+    }
+
+    function updateLastScanTime(timestamp) {
+        const options = {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        };
+        document.getElementById('last-scan-time').textContent =
+            'Último escaneo: ' + timestamp.toLocaleDateString('es-ES', options);
+    }
+
+    // Variables para los gráficos
+    let channels2gChart = null;
+    let channels5gChart = null;
+    let signalChart = null;
+
+    function updateChannelsCharts(data) {
+        // Preparar datos para gráfico 2.4GHz
+        const channels2g = Array.from({length: 14}, (_, i) => i + 1);
+        const data2g = channels2g.map(ch => data.channels_2g[ch] || 0);
+
+        // Crear/actualizar gráfico 2.4GHz
+        const ctx2g = document.getElementById('channels-2g-chart').getContext('2d');
+
+        if (channels2gChart) {
+            channels2gChart.data.datasets[0].data = data2g;
+            channels2gChart.update();
+        } else {
+            channels2gChart = new Chart(ctx2g, {
+                type: 'bar',
+                data: {
+                    labels: channels2g,
+                    datasets: [{
+                        label: 'Redes por canal',
+                        data: data2g,
+                        backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            suggestedMax: 10,
+                            ticks: {
+                                precision: 0
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Preparar datos para gráfico 5GHz
+        const channels5g = Object.keys(data.channels_5g).map(Number).sort((a, b) => a - b);
+        const data5g = channels5g.map(ch => data.channels_5g[ch] || 0);
+
+        // Crear/actualizar gráfico 5GHz
+        const ctx5g = document.getElementById('channels-5g-chart').getContext('2d');
+
+        if (channels5gChart) {
+            channels5gChart.data.labels = channels5g;
+            channels5gChart.data.datasets[0].data = data5g;
+            channels5gChart.update();
+        } else {
+            channels5gChart = new Chart(ctx5g, {
+                type: 'bar',
+                data: {
+                    labels: channels5g,
+                    datasets: [{
+                        label: 'Redes por canal',
+                        data: data5g,
+                        backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            suggestedMax: 10,
+                            ticks: {
+                                precision: 0
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    function updateSignalChart(networks) {
+        // Preparar datos
+        const labels = networks.map(n => n.essid || n.mac);
+        const signalData = networks.map(n => n.signal);
+        const backgroundColors = networks.map(n => {
+            // Color basado en la intensidad de señal
+            if (n.signal > -50) return 'rgba(75, 192, 192, 0.5)';  // Buena señal
+            if (n.signal > -70) return 'rgba(255, 205, 86, 0.5)';  // Señal media
+            return 'rgba(255, 99, 132, 0.5)';  // Señal débil
+        });
+
+        // Crear/actualizar gráfico
+        const ctxSignal = document.getElementById('signal-chart').getContext('2d');
+
+        if (signalChart) {
+            signalChart.data.labels = labels;
+            signalChart.data.datasets[0].data = signalData;
+            signalChart.data.datasets[0].backgroundColor = backgroundColors;
+            signalChart.update();
+        } else {
+            signalChart = new Chart(ctxSignal, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Intensidad de señal (dBm)',
+                        data: signalData,
+                        backgroundColor: backgroundColors,
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    scales: {
+                        x: {
+                            min: -90,
+                            max: -30
+                        }
+                    }
+                }
+            });
+        }
+    }
+});
+</script>
+{% endblock %}

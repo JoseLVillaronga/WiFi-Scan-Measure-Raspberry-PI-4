@@ -1,0 +1,114 @@
+/* Estilos personalizados para WiFi Analyzer */
+
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1;
+}
+
+/* Tarjetas */
+.card {
+    border-radius: 0.5rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    margin-bottom: 1.5rem;
+}
+
+.card-header {
+    border-top-left-radius: 0.5rem !important;
+    border-top-right-radius: 0.5rem !important;
+}
+
+/* Gráficos */
+canvas {
+    min-height: 200px;
+    max-height: 250px;
+    height: 220px !important;
+}
+
+/* Tablas */
+.table th {
+    background-color: #f8f9fa;
+}
+
+/* Indicadores de señal */
+.signal-strong {
+    color: #28a745;
+}
+
+.signal-medium {
+    color: #ffc107;
+}
+
+.signal-weak {
+    color: #dc3545;
+}
+
+/* Botones */
+.btn {
+    border-radius: 0.25rem;
+}
+
+/* Animaciones */
+.fade-in {
+    animation: fadeIn 0.5s;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .card-title {
+        font-size: 1.1rem;
+    }
+
+    .display-4 {
+        font-size: 2.5rem;
+    }
+}
+
+/* Personalización de colores */
+.bg-primary {
+    background-color: #3498db !important;
+}
+
+.btn-primary {
+    background-color: #3498db;
+    border-color: #3498db;
+}
+
+.btn-primary:hover {
+    background-color: #2980b9;
+    border-color: #2980b9;
+}
+
+/* Estilos para el modo oscuro (opcional) */
+@media (prefers-color-scheme: dark) {
+    body.dark-mode {
+        background-color: #121212;
+        color: #e0e0e0;
+    }
+
+    body.dark-mode .card {
+        background-color: #1e1e1e;
+        border-color: #333;
+    }
+
+    body.dark-mode .table {
+        color: #e0e0e0;
+    }
+
+    body.dark-mode .table th {
+        background-color: #2a2a2a;
+    }
+
+    body.dark-mode .text-muted {
+        color: #aaa !important;
+    }
+}

@@ -1,0 +1,333 @@
+{% extends "base.html" %}
+
+{% block title %}Historial - WiFi Analyzer{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-history me-2"></i>Historial de escaneos
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if scans %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Fecha y hora</th>
+                                <th>Nombre</th>
+                                <th>Redes</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for scan in scans %}
+                            <tr>
+                                <td>{{ scan.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                                <td>{{ scan.name if scan.name else 'Escaneo sin nombre' }}</td>
+                                <td>{{ scan.total_networks }}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-primary view-scan-btn" data-scan-id="{{ scan._id }}">
+                                        <i class="fas fa-eye me-1"></i>Ver
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Paginación -->
+                {% if total_pages > 1 %}
+                <nav aria-label="Paginación de escaneos">
+                    <ul class="pagination justify-content-center">
+                        <li class="page-item {% if page == 1 %}disabled{% endif %}">
+                            <a class="page-link" href="{{ url_for('history_page', page=page-1) }}" aria-label="Anterior">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+
+                        {% for p in range(1, total_pages + 1) %}
+                        <li class="page-item {% if p == page %}active{% endif %}">
+                            <a class="page-link" href="{{ url_for('history_page', page=p) }}">{{ p }}</a>
+                        </li>
+                        {% endfor %}
+
+                        <li class="page-item {% if page == total_pages %}disabled{% endif %}">
+                            <a class="page-link" href="{{ url_for('history_page', page=page+1) }}" aria-label="Siguiente">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+                {% endif %}
+
+                <p class="text-center text-muted mt-3">
+                    Mostrando {{ scans|length }} de {{ total_scans }} escaneos
+                </p>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>No hay escaneos disponibles.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para ver detalles del escaneo -->
+<div class="modal fade" id="scanModal" tabindex="-1" aria-labelledby="scanModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="scanModalLabel">Detalles del escaneo</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="scan-details-loading" class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Cargando...</span>
+                    </div>
+                    <p class="mt-2">Cargando detalles del escaneo...</p>
+                </div>
+
+                <div id="scan-details-content" style="display: none;">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Información general</h5>
+                                    <dl class="row">
+                                        <dt class="col-sm-4">Fecha y hora:</dt>
+                                        <dd class="col-sm-8" id="scan-timestamp"></dd>
+
+                                        <dt class="col-sm-4">Nombre:</dt>
+                                        <dd class="col-sm-8" id="scan-name"></dd>
+
+                                        <dt class="col-sm-4">Total de redes:</dt>
+                                        <dd class="col-sm-8" id="scan-total-networks"></dd>
+
+                                        <dt class="col-sm-4">Redes 2.4GHz:</dt>
+                                        <dd class="col-sm-8" id="scan-2g-networks"></dd>
+
+                                        <dt class="col-sm-4">Redes 5GHz:</dt>
+                                        <dd class="col-sm-8" id="scan-5g-networks"></dd>
+                                    </dl>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Gráfico de señal</h5>
+                                    <canvas id="modal-signal-chart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Redes detectadas</h5>
+                                    <div class="table-responsive">
+                                        <table class="table table-striped table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>SSID</th>
+                                                    <th>Canal</th>
+                                                    <th>Frecuencia</th>
+                                                    <th>Señal (dBm)</th>
+                                                    <th>Distancia est.</th>
+                                                    <th>MAC</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="modal-networks-table">
+                                                <!-- Los resultados se cargarán aquí -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Modal y sus elementos
+    const scanModal = new bootstrap.Modal(document.getElementById('scanModal'));
+    const scanDetailsLoading = document.getElementById('scan-details-loading');
+    const scanDetailsContent = document.getElementById('scan-details-content');
+    const scanTimestamp = document.getElementById('scan-timestamp');
+    const scanName = document.getElementById('scan-name');
+    const scanTotalNetworks = document.getElementById('scan-total-networks');
+    const scan2gNetworks = document.getElementById('scan-2g-networks');
+    const scan5gNetworks = document.getElementById('scan-5g-networks');
+    const modalNetworksTable = document.getElementById('modal-networks-table');
+
+    let modalSignalChart = null;
+
+    // Añadir event listeners a los botones de ver escaneo
+    document.querySelectorAll('.view-scan-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const scanId = this.getAttribute('data-scan-id');
+            openScanDetails(scanId);
+        });
+    });
+
+    function openScanDetails(scanId) {
+        // Mostrar modal con indicador de carga
+        scanModal.show();
+        scanDetailsLoading.style.display = 'block';
+        scanDetailsContent.style.display = 'none';
+
+        // Cargar detalles del escaneo
+        fetch(`/api/scans/${scanId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Ocultar indicador de carga
+                    scanDetailsLoading.style.display = 'none';
+                    scanDetailsContent.style.display = 'block';
+
+                    // Mostrar información general
+                    displayScanInfo(data.scan);
+
+                    // Mostrar tabla de redes
+                    displayModalNetworksTable(data.scan.networks);
+
+                    // Mostrar gráfico de señal
+                    displayModalSignalChart(data.scan.networks);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading scan details:', error);
+                scanDetailsLoading.style.display = 'none';
+                scanDetailsContent.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-circle me-2"></i>Error al cargar los detalles del escaneo.
+                    </div>
+                `;
+                scanDetailsContent.style.display = 'block';
+            });
+    }
+
+    function displayScanInfo(scan) {
+        // Formatear fecha
+        const timestamp = new Date(scan.timestamp.$date);
+        const options = {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        };
+
+        // Contar redes por banda
+        const networks2g = scan.networks.filter(n => n.channel && n.channel <= 14).length;
+        const networks5g = scan.networks.filter(n => n.channel && n.channel > 14).length;
+
+        // Actualizar elementos
+        scanTimestamp.textContent = timestamp.toLocaleDateString('es-ES', options);
+        scanName.textContent = scan.name || 'Escaneo sin nombre';
+        scanTotalNetworks.textContent = scan.total_networks;
+        scan2gNetworks.textContent = networks2g;
+        scan5gNetworks.textContent = networks5g;
+    }
+
+    function displayModalNetworksTable(networks) {
+        // Ordenar redes por intensidad de señal
+        networks.sort((a, b) => (b.signal || -100) - (a.signal || -100));
+
+        // Limpiar tabla
+        modalNetworksTable.innerHTML = '';
+
+        // Añadir filas
+        networks.forEach(network => {
+            const row = document.createElement('tr');
+
+            // Determinar clase de señal
+            let signalClass = '';
+            if (network.signal > -50) signalClass = 'text-success';
+            else if (network.signal > -70) signalClass = 'text-warning';
+            else signalClass = 'text-danger';
+
+            row.innerHTML = `
+                <td>${network.essid || '<em>Hidden</em>'}</td>
+                <td>${network.channel || 'N/A'}</td>
+                <td>${network.frequency ? network.frequency + ' GHz' : 'N/A'}</td>
+                <td class="${signalClass}">${network.signal || 'N/A'} dBm</td>
+                <td>${network.distance ? network.distance + ' m' : 'N/A'}</td>
+                <td><small>${network.mac || 'N/A'}</small></td>
+            `;
+
+            modalNetworksTable.appendChild(row);
+        });
+    }
+
+    function displayModalSignalChart(networks) {
+        // Ordenar redes por intensidad de señal
+        const topNetworks = [...networks]
+            .sort((a, b) => (b.signal || -100) - (a.signal || -100))
+            .slice(0, 10);  // Mostrar solo las 10 mejores
+
+        // Preparar datos
+        const labels = topNetworks.map(n => n.essid || n.mac);
+        const signalData = topNetworks.map(n => n.signal);
+        const backgroundColors = topNetworks.map(n => {
+            // Color basado en la intensidad de señal
+            if (n.signal > -50) return 'rgba(75, 192, 192, 0.5)';  // Buena señal
+            if (n.signal > -70) return 'rgba(255, 205, 86, 0.5)';  // Señal media
+            return 'rgba(255, 99, 132, 0.5)';  // Señal débil
+        });
+
+        // Crear/actualizar gráfico
+        const ctx = document.getElementById('modal-signal-chart').getContext('2d');
+
+        if (modalSignalChart) {
+            modalSignalChart.destroy();
+        }
+
+        modalSignalChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Intensidad de señal (dBm)',
+                    data: signalData,
+                    backgroundColor: backgroundColors,
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                scales: {
+                    x: {
+                        min: -90,
+                        max: -30
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
