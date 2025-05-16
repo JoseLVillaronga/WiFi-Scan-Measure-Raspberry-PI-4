@@ -1,0 +1,15 @@
+[Unit]
+Description=WiFi Analyzer Service
+After=network.target mongodb.service
+Wants=mongodb.service
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi/wifi-test
+ExecStart=/home/pi/wifi-test/venv/bin/python /home/pi/wifi-test/app.py
+Restart=on-failure
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
