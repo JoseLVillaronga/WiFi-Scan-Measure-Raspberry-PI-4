@@ -1,18 +1,20 @@
 # WiFi Analyzer para Raspberry Pi
 
-Este proyecto utiliza una Raspberry Pi 4 con Debian 12 para analizar redes WiFi en las bandas de 2.4GHz y 5GHz, calcular distancias estimadas basadas en la intensidad de señal (RSSI) y generar visualizaciones gráficas.
+Este proyecto utiliza una Raspberry Pi 4 con Debian 12 para analizar redes WiFi en las bandas de 2.4GHz y 5GHz, calcular distancias estimadas basadas en la intensidad de señal (RSSI) y generar visualizaciones gráficas interactivas a través de una interfaz web.
 
 ## Características
 
 - Escaneo de redes WiFi en bandas de 2.4GHz y 5GHz
 - Cálculo de distancia estimada basado en RSSI
-- Visualización de canales WiFi y su ocupación
+- Interfaz web responsive con Flask
+- Visualización interactiva de canales WiFi y su ocupación
 - Visualización de lista de redes con detalles
+- Gráficos de intensidad de señal con separación por bandas
 - Soporte para escaneos continuos con intervalo configurable
 - Guardado de resultados en formato JSON y MongoDB
-- Generación de gráficos en formato PNG
+- Historial de escaneos con visualización detallada
 - Análisis de tendencias a lo largo del tiempo
-- Visualización de estadísticas históricas
+- Servicio systemd para ejecución automática
 
 ## Requisitos
 
@@ -24,40 +26,73 @@ Este proyecto utiliza una Raspberry Pi 4 con Debian 12 para analizar redes WiFi 
 
 ## Instalación
 
+### Instalación automática (recomendada)
+
 1. Clonar el repositorio:
+   ```bash
+   git clone https://github.com/usuario/wifi-test.git
+   cd wifi-test
    ```
+
+2. Ejecutar el script de instalación con privilegios de superusuario:
+   ```bash
+   sudo ./install.sh
+   ```
+
+El script de instalación:
+- Verifica e instala los requisitos previos (Python, MongoDB)
+- Configura el entorno virtual
+- Instala las dependencias
+- Configura el servicio systemd
+- Inicia la aplicación
+
+Una vez completada la instalación, la aplicación estará disponible en:
+- URL local: http://localhost:8000
+- URL en la red: http://<IP-del-Raspberry-Pi>:8000
+
+### Instalación manual
+
+Si prefieres realizar la instalación manualmente:
+
+1. Clonar el repositorio:
+   ```bash
    git clone https://github.com/usuario/wifi-test.git
    cd wifi-test
    ```
 
 2. Crear y activar un entorno virtual:
-   ```
+   ```bash
    python3 -m venv venv
    source venv/bin/activate
    ```
 
 3. Instalar dependencias:
-   ```
-   pip install matplotlib numpy pandas pymongo
+   ```bash
+   pip install -r requirements.txt
    ```
 
-4. (Opcional) Instalar MongoDB para almacenamiento y análisis de tendencias:
+4. Instalar MongoDB para almacenamiento de datos:
 
    **Opción A: Usando Docker (recomendado para Raspberry Pi 4)**
+   ```bash
+   sudo docker run -d --name mongodb -p 27017:27017 --restart always mongo:4.4
    ```
-   sudo ./install_mongodb_docker.sh
-   ```
-
-   Este script instala Docker si es necesario, ejecuta MongoDB en un contenedor, instala el cliente MongoDB Shell y configura todo para que funcione automáticamente.
-
-   Para más detalles, consulta [mongodb_docker_install.md](mongodb_docker_install.md)
 
    **Opción B: Instalación nativa**
-   ```
-   sudo ./install_mongodb_rpi.sh
+   ```bash
+   sudo apt-get update
+   sudo apt-get install -y mongodb
+   sudo systemctl start mongodb
+   sudo systemctl enable mongodb
    ```
 
-   Este script intenta instalar MongoDB desde los repositorios de Debian, lo configura para ejecutarse sin autenticación y vinculado solo a localhost (127.0.0.1).
+5. Configurar el servicio systemd:
+   ```bash
+   sudo cp wifi-analyzer.service /etc/systemd/system/
+   sudo systemctl daemon-reload
+   sudo systemctl enable wifi-analyzer.service
+   sudo systemctl start wifi-analyzer.service
+   ```
 
 ## Uso
 
@@ -180,18 +215,47 @@ Donde:
 - RSSI = intensidad de señal recibida en dBm
 - n = factor de propagación (2 en espacio libre, 2.7-4 en interiores)
 
+## Gestión del servicio
+
+Se proporciona un script para gestionar fácilmente el servicio:
+
+```bash
+# Iniciar el servicio
+./manage-service.sh start
+
+# Detener el servicio
+./manage-service.sh stop
+
+# Reiniciar el servicio
+./manage-service.sh restart
+
+# Ver el estado del servicio
+./manage-service.sh status
+
+# Ver los logs del servicio
+./manage-service.sh logs
+```
+
+Para más detalles sobre la gestión del servicio, consulta [docs/servicio_systemd.md](docs/servicio_systemd.md).
+
+## Visualización de señales WiFi
+
+La aplicación muestra los datos de señal WiFi de forma intuitiva, transformando los valores negativos de dBm a una escala positiva para una mejor interpretación visual. Para más detalles sobre cómo se visualizan las señales, consulta [docs/visualizacion_senales.md](docs/visualizacion_senales.md).
+
 ## Estructura del Proyecto
 
-- `wifi_scanner.py`: Módulo para escanear redes WiFi
-- `wifi_visualizer.py`: Módulo para generar visualizaciones
-- `wifi_analyzer.py`: Script principal que integra las funcionalidades
-- `wifi_db.py`: Módulo para interactuar con MongoDB
-- `wifi_trends.py`: Módulo para generar análisis de tendencias
-- `install_mongodb_docker.sh`: Script para instalar MongoDB con Docker
-- `install_mongodb_rpi.sh`: Script alternativo para instalar MongoDB nativamente
-- `mongodb_docker_install.md`: Documentación sobre la instalación de MongoDB con Docker
-- `mongodb_queries.md`: Consultas útiles para explorar datos en MongoDB
-- `calculo_distancia_RSSI.md`: Documentación sobre el cálculo de distancia
+- `app.py`: Aplicación principal Flask
+- `config.py`: Configuración de la aplicación
+- `scanner.py`: Módulo para escanear redes WiFi
+- `db.py`: Módulo para interactuar con MongoDB
+- `templates/`: Plantillas HTML para la interfaz web
+- `static/`: Archivos estáticos (CSS, JavaScript, imágenes)
+- `install.sh`: Script para instalación automática
+- `wifi-analyzer.service`: Configuración del servicio systemd
+- `manage-service.sh`: Script para gestionar el servicio
+- `docs/`: Documentación del proyecto
+  - `visualizacion_senales.md`: Documentación sobre la visualización de señales
+  - `servicio_systemd.md`: Documentación sobre el servicio systemd
 
 ## Ejemplos de Visualizaciones
 
