@@ -4,10 +4,19 @@ body {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    padding-top: 56px; /* Espacio para el navbar fijo */
 }
 
 main {
     flex: 1;
+}
+
+/* Navbar fijo */
+.navbar {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 1030; /* Asegura que esté por encima de otros elementos */
 }
 
 /* Tarjetas */
