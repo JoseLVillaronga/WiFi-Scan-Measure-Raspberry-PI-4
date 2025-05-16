@@ -63,10 +63,8 @@ def api_scan():
     """API para realizar un escaneo"""
     try:
         # Obtener parámetros
-        # Crear fecha UTC y luego convertirla a la zona horaria local
-        now_utc = datetime.utcnow()
-        local_tz = pytz.timezone(app.config['TIMEZONE'])
-        now = now_utc.replace(tzinfo=pytz.UTC).astimezone(local_tz)
+        # Usar datetime.now() sin zona horaria para guardar en MongoDB
+        now = datetime.now()
 
         scan_name = request.form.get('scan_name', f"Escaneo {now.strftime('%Y-%m-%d %H:%M:%S')}")
 
@@ -249,10 +247,8 @@ def api_network_trend(essid):
         # Obtener parámetros
         days = request.args.get('days', 1, type=int)
 
-        # Calcular rango de tiempo con zona horaria configurada
-        now_utc = datetime.utcnow()
-        local_tz = pytz.timezone(app.config['TIMEZONE'])
-        end_time = now_utc.replace(tzinfo=pytz.UTC).astimezone(local_tz)
+        # Calcular rango de tiempo sin zona horaria
+        end_time = datetime.now()
         start_time = end_time - timedelta(days=days)
 
         # Buscar la red en los escaneos
