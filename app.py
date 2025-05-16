@@ -46,8 +46,8 @@ def history_page():
     # Obtener el total de escaneos
     total = mongo.db.wifi_scans.count_documents({})
 
-    # Obtener los escaneos paginados
-    scans = list(mongo.db.wifi_scans.find().sort('timestamp', -1).skip(skip).limit(limit))
+    # Obtener los escaneos paginados ordenados por _id (que contiene timestamp de creación)
+    scans = list(mongo.db.wifi_scans.find().sort('_id', -1).skip(skip).limit(limit))
 
     # Calcular el número total de páginas
     total_pages = (total + limit - 1) // limit
@@ -113,12 +113,12 @@ def api_get_scans():
         # Obtener el total de escaneos
         total = mongo.db.wifi_scans.count_documents({})
 
-        # Obtener los escaneos paginados
+        # Obtener los escaneos paginados ordenados por _id (que contiene timestamp de creación)
         scans = list(mongo.db.wifi_scans.find({}, {
             'name': 1,
             'timestamp': 1,
             'total_networks': 1
-        }).sort('timestamp', -1).skip(skip).limit(limit))
+        }).sort('_id', -1).skip(skip).limit(limit))
 
         # Convertir ObjectId a string para serialización JSON
         for scan in scans:
@@ -169,8 +169,8 @@ def api_get_scan(scan_id):
 def api_networks_by_channel():
     """API para obtener estadísticas de redes por canal"""
     try:
-        # Obtener el último escaneo
-        last_scan = mongo.db.wifi_scans.find_one(sort=[('timestamp', -1)])
+        # Obtener el último escaneo ordenando por _id (que contiene timestamp de creación)
+        last_scan = mongo.db.wifi_scans.find_one(sort=[('_id', -1)])
 
         if not last_scan:
             return jsonify({
@@ -210,8 +210,8 @@ def api_networks_by_channel():
 def api_networks_by_signal():
     """API para obtener las redes con mejor señal"""
     try:
-        # Obtener el último escaneo
-        last_scan = mongo.db.wifi_scans.find_one(sort=[('timestamp', -1)])
+        # Obtener el último escaneo ordenando por _id (que contiene timestamp de creación)
+        last_scan = mongo.db.wifi_scans.find_one(sort=[('_id', -1)])
 
         if not last_scan:
             return jsonify({

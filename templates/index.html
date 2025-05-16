@@ -150,7 +150,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function updateLastScanTime(timestamp) {
-        // Formatear la fecha (ya ajustada manualmente)
+        // Formatear la fecha sin especificar zona horaria
+        // La fecha ya viene en hora local desde el backend
         const options = {
             year: 'numeric',
             month: 'short',
