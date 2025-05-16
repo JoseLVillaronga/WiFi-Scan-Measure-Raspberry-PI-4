@@ -147,8 +147,18 @@ document.addEventListener('DOMContentLoaded', function() {
         scanChartsContainer.style.display = 'none';
 
         // Obtener datos del formulario
+        // Usar la zona horaria correcta para la fecha
+        const options = {
+            year: 'numeric',
+            month: 'numeric',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            timeZone: 'America/Argentina/Buenos_Aires'
+        };
         const scanName = document.getElementById('scan-name').value ||
-                         `Escaneo ${new Date().toLocaleString()}`;
+                         `Escaneo ${new Date().toLocaleString('es-ES', options)}`;
         const cpeId = document.getElementById('cpe-id').value || '';
 
         // Crear FormData

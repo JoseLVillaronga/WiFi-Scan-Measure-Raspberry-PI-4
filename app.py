@@ -7,6 +7,7 @@ Aplicación web para WiFi Analyzer
 
 import os
 import json
+import pytz
 from datetime import datetime, timedelta
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 from flask_pymongo import PyMongo
@@ -62,7 +63,11 @@ def api_scan():
     """API para realizar un escaneo"""
     try:
         # Obtener parámetros
-        scan_name = request.form.get('scan_name', f"Escaneo {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        # Usar zona horaria configurada
+        local_tz = pytz.timezone(app.config['TIMEZONE'])
+        now = datetime.now(local_tz)
+
+        scan_name = request.form.get('scan_name', f"Escaneo {now.strftime('%Y-%m-%d %H:%M:%S')}")
 
         # Realizar escaneo
         networks = wifi_scanner.scan_wifi()
@@ -71,7 +76,7 @@ def api_scan():
             # Guardar en MongoDB
             result = mongo.db.wifi_scans.insert_one({
                 'name': scan_name,
-                'timestamp': datetime.now(),
+                'timestamp': now,
                 'networks': networks,
                 'total_networks': len(networks),
                 'metadata': {
@@ -237,8 +242,9 @@ def api_network_trend(essid):
         # Obtener parámetros
         days = request.args.get('days', 1, type=int)
 
-        # Calcular rango de tiempo
-        end_time = datetime.now()
+        # Calcular rango de tiempo con zona horaria configurada
+        local_tz = pytz.timezone(app.config['TIMEZONE'])
+        end_time = datetime.now(local_tz)
         start_time = end_time - timedelta(days=days)
 
         # Buscar la red en los escaneos
