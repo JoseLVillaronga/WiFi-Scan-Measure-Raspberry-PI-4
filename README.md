@@ -1,4 +1,5 @@
 # WiFi Analyzer para Raspberry Pi
+![ChatGPT Image 16 may 2025, 18_35_27](https://github.com/user-attachments/assets/6e8df746-c472-4373-94d9-7cbe16b46553)
 
 Este proyecto utiliza una Raspberry Pi 4 con Debian 12 para analizar redes WiFi en las bandas de 2.4GHz y 5GHz, calcular distancias estimadas basadas en la intensidad de señal (RSSI) y generar visualizaciones gráficas interactivas a través de una interfaz web.
 
