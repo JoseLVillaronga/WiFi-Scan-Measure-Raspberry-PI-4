@@ -41,19 +41,19 @@ def history_page():
     page = request.args.get('page', 1, type=int)
     limit = app.config['ITEMS_PER_PAGE']
     skip = (page - 1) * limit
-    
+
     # Obtener el total de escaneos
     total = mongo.db.wifi_scans.count_documents({})
-    
+
     # Obtener los escaneos paginados
     scans = list(mongo.db.wifi_scans.find().sort('timestamp', -1).skip(skip).limit(limit))
-    
+
     # Calcular el número total de páginas
     total_pages = (total + limit - 1) // limit
-    
-    return render_template('history.html', 
-                          scans=scans, 
-                          page=page, 
+
+    return render_template('history.html',
+                          scans=scans,
+                          page=page,
                           total_pages=total_pages,
                           total_scans=total)
 
@@ -63,10 +63,10 @@ def api_scan():
     try:
         # Obtener parámetros
         scan_name = request.form.get('scan_name', f"Escaneo {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        
+
         # Realizar escaneo
         networks = wifi_scanner.scan_wifi()
-        
+
         if networks:
             # Guardar en MongoDB
             result = mongo.db.wifi_scans.insert_one({
@@ -78,7 +78,7 @@ def api_scan():
                     'source': 'web_interface'
                 }
             })
-            
+
             return jsonify({
                 'success': True,
                 'message': 'Escaneo completado con éxito',
@@ -90,7 +90,7 @@ def api_scan():
                 'success': False,
                 'message': 'No se encontraron redes WiFi o hubo un error en el escaneo'
             }), 400
-    
+
     except Exception as e:
         return jsonify({
             'success': False,
@@ -105,21 +105,21 @@ def api_get_scans():
         page = request.args.get('page', 1, type=int)
         limit = request.args.get('limit', app.config['ITEMS_PER_PAGE'], type=int)
         skip = (page - 1) * limit
-        
+
         # Obtener el total de escaneos
         total = mongo.db.wifi_scans.count_documents({})
-        
+
         # Obtener los escaneos paginados
         scans = list(mongo.db.wifi_scans.find({}, {
-            'name': 1, 
-            'timestamp': 1, 
+            'name': 1,
+            'timestamp': 1,
             'total_networks': 1
         }).sort('timestamp', -1).skip(skip).limit(limit))
-        
+
         # Convertir ObjectId a string para serialización JSON
         for scan in scans:
             scan['_id'] = str(scan['_id'])
-        
+
         return jsonify({
             'success': True,
             'total': total,
@@ -127,7 +127,7 @@ def api_get_scans():
             'limit': limit,
             'scans': scans
         })
-    
+
     except Exception as e:
         return jsonify({
             'success': False,
@@ -140,11 +140,11 @@ def api_get_scan(scan_id):
     try:
         # Convertir string a ObjectId
         scan = mongo.db.wifi_scans.find_one({'_id': ObjectId(scan_id)})
-        
+
         if scan:
             # Convertir a JSON serializable
             scan_json = json.loads(dumps(scan))
-            
+
             return jsonify({
                 'success': True,
                 'scan': scan_json
@@ -154,7 +154,7 @@ def api_get_scan(scan_id):
                 'success': False,
                 'message': 'Escaneo no encontrado'
             }), 404
-    
+
     except Exception as e:
         return jsonify({
             'success': False,
@@ -167,17 +167,17 @@ def api_networks_by_channel():
     try:
         # Obtener el último escaneo
         last_scan = mongo.db.wifi_scans.find_one(sort=[('timestamp', -1)])
-        
+
         if not last_scan:
             return jsonify({
                 'success': False,
                 'message': 'No hay escaneos disponibles'
             }), 404
-        
+
         # Contar redes por canal
         channels_2g = {}
         channels_5g = {}
-        
+
         for network in last_scan['networks']:
             channel = network.get('channel')
             if channel:
@@ -185,14 +185,14 @@ def api_networks_by_channel():
                     channels_2g[channel] = channels_2g.get(channel, 0) + 1
                 else:  # 5GHz
                     channels_5g[channel] = channels_5g.get(channel, 0) + 1
-        
+
         return jsonify({
             'success': True,
             'timestamp': last_scan['timestamp'],
             'channels_2g': channels_2g,
             'channels_5g': channels_5g
         })
-    
+
     except Exception as e:
         return jsonify({
             'success': False,
@@ -205,25 +205,25 @@ def api_networks_by_signal():
     try:
         # Obtener el último escaneo
         last_scan = mongo.db.wifi_scans.find_one(sort=[('timestamp', -1)])
-        
+
         if not last_scan:
             return jsonify({
                 'success': False,
                 'message': 'No hay escaneos disponibles'
             }), 404
-        
+
         # Ordenar redes por intensidad de señal
         networks = sorted(last_scan['networks'], key=lambda x: x.get('signal', -100), reverse=True)
-        
+
         # Limitar a las mejores redes
         top_networks = networks[:app.config['MAX_NETWORKS_IN_CHART']]
-        
+
         return jsonify({
             'success': True,
             'timestamp': last_scan['timestamp'],
             'networks': top_networks
         })
-    
+
     except Exception as e:
         return jsonify({
             'success': False,
@@ -236,11 +236,11 @@ def api_network_trend(essid):
     try:
         # Obtener parámetros
         days = request.args.get('days', 1, type=int)
-        
+
         # Calcular rango de tiempo
         end_time = datetime.now()
         start_time = end_time - timedelta(days=days)
-        
+
         # Buscar la red en los escaneos
         pipeline = [
             {'$match': {'timestamp': {'$gte': start_time, '$lte': end_time}}},
@@ -254,21 +254,21 @@ def api_network_trend(essid):
             }},
             {'$sort': {'timestamp': 1}}
         ]
-        
+
         results = list(mongo.db.wifi_scans.aggregate(pipeline))
-        
+
         if not results:
             return jsonify({
                 'success': False,
                 'message': f'No se encontraron datos para la red {essid}'
             }), 404
-        
+
         return jsonify({
             'success': True,
             'essid': essid,
             'data': results
         })
-    
+
     except Exception as e:
         return jsonify({
             'success': False,
@@ -277,4 +277,4 @@ def api_network_trend(essid):
 
 # Ejecutar la aplicación
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=8000, debug=True)
