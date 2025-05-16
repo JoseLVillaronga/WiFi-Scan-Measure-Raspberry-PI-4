@@ -349,13 +349,16 @@ document.addEventListener('DOMContentLoaded', function() {
         const data2g = Array(maxNetworks).fill(null);
         const data5g = Array(maxNetworks).fill(null);
 
-        // Llenar con los datos reales
+        // Llenar con los datos reales y transformar los valores negativos a positivos
+        // Transformamos los valores de dBm para que -90 sea 0 y -30 sea 60
         for (let i = 0; i < top2g.length; i++) {
-            data2g[i] = top2g[i].signal;
+            // Transformar el valor: valor_transformado = valor_original + 90
+            data2g[i] = top2g[i].signal + 90;
         }
 
         for (let i = 0; i < top5g.length; i++) {
-            data5g[i] = top5g[i].signal;
+            // Transformar el valor: valor_transformado = valor_original + 90
+            data5g[i] = top5g[i].signal + 90;
         }
 
         modalSignalChart = new Chart(ctx, {
@@ -398,6 +401,17 @@ document.addEventListener('DOMContentLoaded', function() {
                                     return networks[index].essid || networks[index].mac;
                                 }
                                 return 'Red ' + (index + 1);
+                            },
+                            label: function(context) {
+                                // Mostrar el valor original en dBm
+                                const datasetIndex = context.datasetIndex;
+                                const index = context.dataIndex;
+                                const networks = datasetIndex === 0 ? top2g : top5g;
+                                if (index < networks.length) {
+                                    return 'Señal: ' + networks[index].signal + ' dBm';
+                                }
+                                // Si no hay datos, calcular el valor original restando 90
+                                return 'Señal: ' + (context.parsed.y - 90) + ' dBm';
                             }
                         }
                     },
@@ -411,9 +425,14 @@ document.addEventListener('DOMContentLoaded', function() {
                             display: true,
                             text: 'Intensidad de señal (dBm)'
                         },
-                        min: -90,
-                        max: -30,
-                        reverse: true
+                        min: 0,
+                        max: 60,
+                        ticks: {
+                            callback: function(value) {
+                                // Convertir el valor transformado de vuelta a dBm para las etiquetas
+                                return (value - 90) + ' dBm';
+                            }
+                        }
                     }
                 }
             }
