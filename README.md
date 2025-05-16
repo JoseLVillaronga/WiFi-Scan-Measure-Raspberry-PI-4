@@ -61,28 +61,75 @@ Este proyecto utiliza una Raspberry Pi 4 con Debian 12 para analizar redes WiFi 
 
 ## Uso
 
+### Modos de almacenamiento
+
+El programa tiene dos modos de almacenamiento mutuamente excluyentes:
+
+- **Modo JSON** (predeterminado): Guarda los resultados en archivos JSON
+- **Modo MongoDB**: Guarda los resultados en una base de datos MongoDB
+
+### Opciones de visualización
+
+La generación de gráficos ahora es explícita y se activa con el parámetro `--generate-graphs`.
+
 ### Escaneo único
 
-Para realizar un único escaneo y generar visualizaciones:
+Para realizar un único escaneo y guardar en JSON (predeterminado):
 
 ```
 python wifi_analyzer.py --scan
 ```
 
+Para realizar un único escaneo, guardar en JSON y generar gráficos:
+
+```
+python wifi_analyzer.py --scan --generate-graphs
+```
+
+Para realizar un único escaneo y guardar en MongoDB:
+
+```
+python wifi_analyzer.py --scan --use-mongodb
+```
+
+Para realizar un único escaneo, guardar en MongoDB y generar gráficos:
+
+```
+python wifi_analyzer.py --scan --use-mongodb --generate-graphs
+```
+
 ### Visualizar último escaneo
 
-Para visualizar los resultados del último escaneo:
+Para visualizar los resultados del último escaneo (desde JSON por defecto):
 
 ```
 python wifi_analyzer.py --visualize
 ```
 
+Para visualizar los resultados del último escaneo desde MongoDB:
+
+```
+python wifi_analyzer.py --visualize --use-mongodb
+```
+
 ### Escaneo continuo
 
-Para realizar escaneos continuos cada 60 segundos:
+Para realizar escaneos continuos cada 60 segundos (guardando en JSON):
 
 ```
 python wifi_analyzer.py --continuous --interval 60
+```
+
+Para realizar escaneos continuos y generar gráficos:
+
+```
+python wifi_analyzer.py --continuous --interval 60 --generate-graphs
+```
+
+Para realizar escaneos continuos y guardar en MongoDB:
+
+```
+python wifi_analyzer.py --continuous --interval 60 --use-mongodb
 ```
 
 Para realizar un número específico de escaneos:
@@ -97,19 +144,7 @@ Para guardar los resultados en un directorio específico:
 python wifi_analyzer.py --continuous --interval 60 --output-dir ./resultados
 ```
 
-### Uso con MongoDB
-
-Para usar MongoDB para almacenar los resultados:
-
-```
-python wifi_analyzer.py --scan --use-mongodb
-```
-
-Para realizar escaneos continuos y guardar en MongoDB:
-
-```
-python wifi_analyzer.py --continuous --interval 60 --use-mongodb
-```
+### Operaciones con MongoDB
 
 Para importar archivos JSON existentes a MongoDB:
 

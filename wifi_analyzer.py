@@ -108,7 +108,7 @@ def ensure_wifi_interface_up():
         print(f"Error inesperado: {e}")
         return False
 
-def continuous_scan(interval, count, output_dir=None, db=None):
+def continuous_scan(interval, count, output_dir=None, db=None, use_json=True, generate_graphs=False):
     """
     Realiza escaneos continuos de redes WiFi.
 
@@ -117,8 +117,10 @@ def continuous_scan(interval, count, output_dir=None, db=None):
         count (int): Número de escaneos a realizar (0 para infinito)
         output_dir (str, optional): Directorio para guardar los resultados
         db (WiFiDB, optional): Instancia de WiFiDB para guardar en MongoDB
+        use_json (bool): Si es True, guarda los resultados en archivos JSON
+        generate_graphs (bool): Si es True, genera gráficos PNG
     """
-    if output_dir:
+    if output_dir and (use_json or generate_graphs):
         os.makedirs(output_dir, exist_ok=True)
 
     scan_count = 0
@@ -151,16 +153,18 @@ def continuous_scan(interval, count, output_dir=None, db=None):
                     if scan_id:
                         print(f"Datos guardados en MongoDB con ID: {scan_id}")
 
-                # Guardar resultados en archivo JSON
-                if output_dir:
-                    json_file = os.path.join(output_dir, f"wifi_scan_{timestamp}.json")
-                else:
-                    json_file = f"wifi_scan_{timestamp}.json"
+                # Guardar resultados en archivo JSON si se solicitó
+                if use_json:
+                    if output_dir:
+                        json_file = os.path.join(output_dir, f"wifi_scan_{timestamp}.json")
+                    else:
+                        json_file = f"wifi_scan_{timestamp}.json"
 
-                wifi_scanner.save_scan_results(networks, json_file)
+                    wifi_scanner.save_scan_results(networks, json_file)
+                    print(f"Datos guardados en archivo JSON: {json_file}")
 
-                # Generar gráficos si el visualizador está disponible
-                if VISUALIZER_AVAILABLE:
+                # Generar gráficos si se solicitó y el visualizador está disponible
+                if generate_graphs and VISUALIZER_AVAILABLE:
                     try:
                         print("Generando gráficos...")
                         if output_dir:
@@ -172,14 +176,15 @@ def continuous_scan(interval, count, output_dir=None, db=None):
 
                         wifi_visualizer.plot_channel_graph(networks, channel_graph_file)
                         wifi_visualizer.plot_network_list(networks, network_list_file)
+                        print(f"Gráficos guardados: {channel_graph_file}, {network_list_file}")
                     except Exception as e:
                         print(f"Error al generar gráficos: {e}")
-                else:
+                elif generate_graphs and not VISUALIZER_AVAILABLE:
                     print("No se generarán gráficos porque el módulo de visualización no está disponible.")
 
             scan_count += 1
 
-            # Mostrar estadísticas si se han realizado múltiples escaneos
+            # Mostrar estadísticas si se han realizado múltiples escaneos y se usa MongoDB
             if scan_count > 1 and db and db.is_connected():
                 try:
                     # Obtener estadísticas básicas
@@ -197,7 +202,7 @@ def continuous_scan(interval, count, output_dir=None, db=None):
     except KeyboardInterrupt:
         print("\nEscaneo detenido por el usuario.")
 
-        # Mostrar resumen final
+        # Mostrar resumen final si se usa MongoDB
         if db and db.is_connected():
             try:
                 end_time = datetime.now()
@@ -213,11 +218,20 @@ def continuous_scan(interval, count, output_dir=None, db=None):
                 print(f"- Total de redes detectadas: {total_networks}")
                 print(f"- Redes únicas detectadas: {unique_networks}")
 
-                if VISUALIZER_AVAILABLE:
+                if TRENDS_AVAILABLE:
                     print("\nPara visualizar tendencias, ejecute:")
                     print(f"python wifi_analyzer.py --use-mongodb --trends --days {max(1, int(elapsed_seconds / 86400) + 1)}")
             except Exception as e:
                 print(f"Error al generar resumen: {e}")
+        else:
+            # Mostrar resumen básico si no se usa MongoDB
+            end_time = datetime.now()
+            elapsed_time = end_time - start_time
+            elapsed_seconds = elapsed_time.total_seconds()
+
+            print(f"\nResumen de la sesión:")
+            print(f"- Duración: {int(elapsed_seconds // 3600)}h {int((elapsed_seconds % 3600) // 60)}m {int(elapsed_seconds % 60)}s")
+            print(f"- Escaneos realizados: {scan_count}")
 
 def main():
     """Función principal"""
@@ -231,8 +245,15 @@ def main():
     parser.add_argument('--count', type=int, default=0, help='Número de escaneos (0 para infinito)')
     parser.add_argument('--output-dir', type=str, help='Directorio para guardar los resultados')
 
+    # Opciones de almacenamiento
+    storage_group = parser.add_mutually_exclusive_group()
+    storage_group.add_argument('--use-json', action='store_true', help='Usar archivos JSON para almacenar los resultados (predeterminado)')
+    storage_group.add_argument('--use-mongodb', action='store_true', help='Usar MongoDB para almacenar los resultados')
+
+    # Opciones de visualización
+    parser.add_argument('--generate-graphs', action='store_true', help='Generar gráficos PNG de los resultados')
+
     # Opciones de MongoDB
-    parser.add_argument('--use-mongodb', action='store_true', help='Usar MongoDB para almacenar los resultados')
     parser.add_argument('--mongo-host', type=str, default='localhost', help='Host de MongoDB')
     parser.add_argument('--mongo-port', type=int, default=27017, help='Puerto de MongoDB')
     parser.add_argument('--mongo-db', type=str, default='wifi_analyzer', help='Nombre de la base de datos MongoDB')
@@ -324,39 +345,62 @@ def main():
         print("Realizando un único escaneo...")
         networks = wifi_scanner.scan_wifi()
         if networks:
-            # Guardar en MongoDB si está disponible
-            if db and db.is_connected():
+            # Determinar el modo de almacenamiento
+            use_mongodb = args.use_mongodb and DB_AVAILABLE
+            use_json = args.use_json or (not use_mongodb)
+
+            json_file = None
+            scan_id = None
+
+            # Guardar en MongoDB si se solicitó
+            if use_mongodb and db and db.is_connected():
                 scan_id = db.save_scan(networks, metadata={"source": "single_scan"})
                 if scan_id:
                     print(f"Datos guardados en MongoDB con ID: {scan_id}")
 
-            # Guardar en archivo JSON
-            json_file = wifi_scanner.save_scan_results(networks)
+            # Guardar en archivo JSON si se solicitó o es el modo predeterminado
+            if use_json:
+                json_file = wifi_scanner.save_scan_results(networks)
+                print(f"Datos guardados en archivo JSON: {json_file}")
 
-            # Generar gráficos si el visualizador está disponible
-            if VISUALIZER_AVAILABLE:
+            # Generar gráficos si se solicitó explícitamente y el visualizador está disponible
+            if args.generate_graphs and VISUALIZER_AVAILABLE:
                 try:
                     print("Generando gráficos...")
-                    wifi_visualizer.plot_channel_graph(networks, json_file.replace('.json', '_channel.png'))
-                    wifi_visualizer.plot_network_list(networks, json_file.replace('.json', '_list.png'))
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+                    if args.output_dir:
+                        os.makedirs(args.output_dir, exist_ok=True)
+                        channel_graph_file = os.path.join(args.output_dir, f"wifi_channel_graph_{timestamp}.png")
+                        network_list_file = os.path.join(args.output_dir, f"wifi_network_list_{timestamp}.png")
+                    else:
+                        channel_graph_file = f"wifi_channel_graph_{timestamp}.png"
+                        network_list_file = f"wifi_network_list_{timestamp}.png"
+
+                    wifi_visualizer.plot_channel_graph(networks, channel_graph_file)
+                    wifi_visualizer.plot_network_list(networks, network_list_file)
                 except Exception as e:
                     print(f"Error al generar gráficos: {e}")
-            else:
+            elif args.generate_graphs and not VISUALIZER_AVAILABLE:
                 print("No se generarán gráficos porque el módulo de visualización no está disponible.")
 
     elif args.visualize:
         if VISUALIZER_AVAILABLE:
             print("Visualizando el último escaneo...")
             try:
-                # Si MongoDB está disponible, intentar obtener el último escaneo de allí
-                if db and db.is_connected():
+                # Si MongoDB está disponible y se solicitó, intentar obtener el último escaneo de allí
+                if args.use_mongodb and db and db.is_connected():
                     latest_scan = db.get_latest_scan()
                     if latest_scan:
                         print(f"Visualizando escaneo de MongoDB del {latest_scan['timestamp']}")
                         # Aquí podríamos implementar una visualización específica para datos de MongoDB
                         # Por ahora, usamos la visualización estándar
-
-                wifi_visualizer.main()
+                        wifi_visualizer.main()
+                    else:
+                        print("No se encontraron escaneos en MongoDB.")
+                else:
+                    # Usar la visualización estándar basada en archivos JSON
+                    wifi_visualizer.main()
             except Exception as e:
                 print(f"Error al visualizar el escaneo: {e}")
         else:
@@ -364,7 +408,15 @@ def main():
 
     elif args.continuous:
         print(f"Iniciando escaneo continuo cada {args.interval} segundos...")
-        continuous_scan(args.interval, args.count, args.output_dir, db)
+        # Determinar el modo de almacenamiento para el escaneo continuo
+        use_mongodb = args.use_mongodb and DB_AVAILABLE
+        use_json = args.use_json or (not use_mongodb)
+
+        # Pasar los parámetros de almacenamiento a la función de escaneo continuo
+        continuous_scan(args.interval, args.count, args.output_dir,
+                       db if use_mongodb else None,
+                       use_json,
+                       args.generate_graphs)
 
     else:
         # Si no se especifica ninguna acción, mostrar ayuda
