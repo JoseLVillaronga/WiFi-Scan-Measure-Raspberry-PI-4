@@ -120,10 +120,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.success) {
                     updateChannelsCharts(data);
 
-                    // Convertir la fecha de MongoDB a fecha local
-                    // El valor $date es un timestamp en milisegundos UTC
-                    const timestamp = new Date(data.timestamp.$date);
-                    console.log("Timestamp original:", timestamp);
+                    // Convertir la fecha ISO a objeto Date
+                    // La fecha ya viene en formato ISO desde el backend con la zona horaria correcta
+                    const timestamp = new Date(data.timestamp);
+
+                    console.log("Timestamp:", timestamp);
                     updateLastScanTime(timestamp);
 
                     // Contar redes por banda
@@ -149,20 +150,18 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function updateLastScanTime(timestamp) {
-        // Formatear la fecha con la zona horaria correcta
+        // Formatear la fecha (ya ajustada manualmente)
         const options = {
             year: 'numeric',
             month: 'short',
             day: 'numeric',
             hour: '2-digit',
             minute: '2-digit',
-            second: '2-digit',
-            timeZone: 'America/Argentina/Buenos_Aires'  // Especificar zona horaria explícitamente
+            second: '2-digit'
         };
 
-        // Usar Intl.DateTimeFormat para un formateo más preciso con zona horaria
-        const formatter = new Intl.DateTimeFormat('es-ES', options);
-        const formattedDate = formatter.format(timestamp);
+        // Usar toLocaleDateString sin especificar zona horaria
+        const formattedDate = timestamp.toLocaleDateString('es-ES', options);
         console.log("Fecha formateada:", formattedDate);
 
         document.getElementById('last-scan-time').textContent = formattedDate;

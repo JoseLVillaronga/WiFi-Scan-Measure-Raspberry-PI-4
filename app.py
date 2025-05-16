@@ -191,9 +191,12 @@ def api_networks_by_channel():
                 else:  # 5GHz
                     channels_5g[channel] = channels_5g.get(channel, 0) + 1
 
+        # Convertir timestamp a formato ISO para que sea serializable
+        timestamp_iso = last_scan['timestamp'].isoformat()
+
         return jsonify({
             'success': True,
-            'timestamp': last_scan['timestamp'],
+            'timestamp': timestamp_iso,
             'channels_2g': channels_2g,
             'channels_5g': channels_5g
         })
@@ -223,9 +226,12 @@ def api_networks_by_signal():
         # Limitar a las mejores redes
         top_networks = networks[:app.config['MAX_NETWORKS_IN_CHART']]
 
+        # Convertir timestamp a formato ISO para que sea serializable
+        timestamp_iso = last_scan['timestamp'].isoformat()
+
         return jsonify({
             'success': True,
-            'timestamp': last_scan['timestamp'],
+            'timestamp': timestamp_iso,
             'networks': top_networks
         })
 
