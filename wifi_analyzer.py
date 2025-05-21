@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/home/pi/wifi-test/venv/bin/python
 # -*- coding: utf-8 -*-
 
 """

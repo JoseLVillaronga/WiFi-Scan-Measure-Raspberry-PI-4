@@ -23,6 +23,12 @@ print_warning() {
 print_error() {
     echo -e "${RED}[-] $1${NC}"
 }
+export http_proxy=http://192.168.4.1:44088
+export https_proxy=http://192.168.4.1:44088
+source venv/bin/activate
+curl -sSL https://get.docker.com | sh
+#sudo docker run -d   --name mongodb   --network host   mongo:4.4.18
+sudo docker run -d --name mongodb --network host --restart=always mongo:4.4.18
 
 # Función para verificar si un comando existe
 command_exists() {
@@ -66,25 +72,25 @@ if ! command_exists mongod; then
     print_warning "MongoDB no está instalado. Instalando..."
     
     # Añadir la clave GPG de MongoDB
-    apt-get install -y gnupg
-    wget -qO - https://www.mongodb.org/static/pgp/server-6.0.asc | apt-key add -
+#    apt-get install -y gnupg
+#    wget -qO - https://www.mongodb.org/static/pgp/server-6.0.asc | apt-key add -
     
     # Añadir el repositorio de MongoDB
-    echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/6.0 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-6.0.list
+#    echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/6.0 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-6.0.list
     
     # Actualizar e instalar MongoDB
-    apt-get update
-    apt-get install -y mongodb-org
+#    apt-get update
+#    apt-get install -y mongodb-org
     
     # Iniciar y habilitar MongoDB
-    systemctl start mongod
-    systemctl enable mongod
+#    systemctl start mongod
+#    systemctl enable mongod
     
     if [ $? -ne 0 ]; then
         print_warning "Error al instalar MongoDB. Intentando instalar la versión del repositorio de Debian..."
-        apt-get install -y mongodb
-        systemctl start mongodb
-        systemctl enable mongodb
+#        apt-get install -y mongodb
+#        systemctl start mongodb
+#        systemctl enable mongodb
         
         if [ $? -ne 0 ]; then
             print_error "Error al instalar MongoDB. Intentando configurar Docker..."
@@ -129,7 +135,7 @@ print_status "Instalando dependencias..."
 "$APP_DIR/venv/bin/pip" install -r "$APP_DIR/requirements.txt"
 if [ $? -ne 0 ]; then
     print_error "Error al instalar las dependencias. Abortando."
-    exit 1
+    #exit 1
 fi
 
 # Configurar el servicio systemd
@@ -190,5 +196,6 @@ chmod +x "$APP_DIR/manage-service.sh"
 
 print_status "Instalación completada."
 print_status "Puedes gestionar el servicio con: $APP_DIR/manage-service.sh [start|stop|restart|status|logs]"
-
+cd /home/pi/wifi-test/; source venv/bin/activate; python wifi_analyzer.py --use-mongodb --scan
+ln -s /home/pi/wifi-test/wifi_analyzer.py /usr/bin/wifi_analizer
 exit 0
