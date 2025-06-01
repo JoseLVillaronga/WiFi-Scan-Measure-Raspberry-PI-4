@@ -198,4 +198,5 @@ print_status "Instalación completada."
 print_status "Puedes gestionar el servicio con: $APP_DIR/manage-service.sh [start|stop|restart|status|logs]"
 cd /home/pi/wifi-test/; source venv/bin/activate; python wifi_analyzer.py --use-mongodb --scan
 ln -s /home/pi/wifi-test/wifi_analyzer.py /usr/bin/wifi_analizer
+chmod 755 /usr/bin/wifi_analizer
 exit 0
